@@ -1,30 +1,77 @@
-let available=1, gateOpen=false;
+// script.js
 
-function updateGreeting(){
-  const hour=new Date().getHours();
-  const greet=hour<12?'Good Morning':(hour<18?'Good Afternoon':'Good Evening');
-  document.getElementById('greeting').textContent=greet+' Driver 👋';
+/**************************************************
+ SMART PARKING SYSTEM - LIVE BLYNK WEB DASHBOARD
+**************************************************/
+
+const AUTH_TOKEN = "DEIBJaDx8vV6JY2byaeWadasWkoOfD94";
+
+const GET_URL = `https://blynk.cloud/external/api/get?token=${AUTH_TOKEN}`;
+const UPDATE_URL = `https://blynk.cloud/external/api/update?token=${AUTH_TOKEN}`;
+
+// HTML Elements
+const slotStatus     = document.getElementById("slotStatus");
+const gateStatus     = document.getElementById("gateStatus");
+const availableCount = document.getElementById("availableCount");
+const occupiedCount  = document.getElementById("occupiedCount");
+const gateBtn        = document.getElementById("gateBtn");
+
+// --------------------------------
+// Fetch Live Data from Blynk
+// --------------------------------
+async function fetchParkingData(){
+
+    try{
+
+        const available = await fetch(`${GET_URL}&V0`).then(r => r.text());
+        const occupied  = await fetch(`${GET_URL}&V1`).then(r => r.text());
+        const gate      = await fetch(`${GET_URL}&V2`).then(r => r.text());
+
+        // Slot Status
+        if(occupied === "1"){
+            slotStatus.innerText = "OCCUPIED";
+            slotStatus.className = "status occupied";
+        }else{
+            slotStatus.innerText = "AVAILABLE";
+            slotStatus.className = "status available";
+        }
+
+        // Statistics
+        availableCount.innerText = available;
+        occupiedCount.innerText = occupied;
+
+        // Gate Status
+        if(gate.includes("OPEN")){
+            gateStatus.innerText = "OPEN";
+            gateStatus.className = "gate open";
+        }else{
+            gateStatus.innerText = "CLOSED";
+            gateStatus.className = "gate closed";
+        }
+
+    }catch(error){
+        console.log("Connection Error");
+    }
 }
 
-function render(){
-  document.getElementById('slots').textContent=available;
-  document.getElementById('gate').textContent=gateOpen?'Open':'Closed';
-  document.getElementById('occ').textContent=(2-available)+' / 2';
+// --------------------------------
+// Manual Gate Button (V3)
+// --------------------------------
+gateBtn.addEventListener("click", async ()=>{
 
-  const a1=document.getElementById('a1');
-  a1.textContent=available>0?'A1 Available':'A1 Occupied';
-  a1.className='slot '+(available>0?'free':'busy');
-}
+    gateBtn.innerText = "Opening...";
 
-function toggleGate(){
-  gateOpen=!gateOpen;
-  render();
-}
+    await fetch(`${UPDATE_URL}&V3=1`);
 
-function simulate(){
-  available=available===1?0:1;
-  render();
-}
+    setTimeout(async ()=>{
+        await fetch(`${UPDATE_URL}&V3=0`);
+        gateBtn.innerText = "Open Gate";
+    },1500);
 
-updateGreeting();
-render();
+});
+
+// Initial Load
+fetchParkingData();
+
+// Refresh every 2 sec
+setInterval(fetchParkingData,2000);
