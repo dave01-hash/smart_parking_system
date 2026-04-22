@@ -1,62 +1,54 @@
 // script.js
 
-/**************************************************
- SMART PARKING SYSTEM - LIVE BLYNK WEB DASHBOARD
-**************************************************/
-
 const AUTH_TOKEN = "DEIBJaDx8vV6JY2byaeWadasWkoOfD94";
 
 const GET_URL = `https://blynk.cloud/external/api/get?token=${AUTH_TOKEN}`;
 const UPDATE_URL = `https://blynk.cloud/external/api/update?token=${AUTH_TOKEN}`;
 
-// HTML Elements
-const slotStatus     = document.getElementById("slotStatus");
-const gateStatus     = document.getElementById("gateStatus");
+const slotStatus = document.getElementById("slotStatus");
+const gateStatus = document.getElementById("gateStatus");
 const availableCount = document.getElementById("availableCount");
-const occupiedCount  = document.getElementById("occupiedCount");
-const gateBtn        = document.getElementById("gateBtn");
+const occupiedCount = document.getElementById("occupiedCount");
+const gateBtn = document.getElementById("gateBtn");
 
-// --------------------------------
-// Fetch Live Data from Blynk
-// --------------------------------
-async function fetchParkingData(){
+// Fetch Live Data
+async function loadData(){
 
     try{
 
-        const available = await fetch(`${GET_URL}&V0`).then(r => r.text());
-        const occupied  = await fetch(`${GET_URL}&V1`).then(r => r.text());
-        const gate      = await fetch(`${GET_URL}&V2`).then(r => r.text());
+        const available = await fetch(`${GET_URL}&V0`).then(r=>r.text());
+        const occupied = await fetch(`${GET_URL}&V1`).then(r=>r.text());
+        const gate = await fetch(`${GET_URL}&V2`).then(r=>r.text());
 
-        // Slot Status
+        // Slot
         if(occupied === "1"){
             slotStatus.innerText = "OCCUPIED";
-            slotStatus.className = "status occupied";
+            slotStatus.className = "badge red";
         }else{
             slotStatus.innerText = "AVAILABLE";
-            slotStatus.className = "status available";
+            slotStatus.className = "badge green";
         }
 
-        // Statistics
+        // Stats
         availableCount.innerText = available;
         occupiedCount.innerText = occupied;
 
-        // Gate Status
+        // Gate
         if(gate.includes("OPEN")){
             gateStatus.innerText = "OPEN";
-            gateStatus.className = "gate open";
+            gateStatus.className = "badge blue";
         }else{
             gateStatus.innerText = "CLOSED";
-            gateStatus.className = "gate closed";
+            gateStatus.className = "badge red";
         }
 
-    }catch(error){
-        console.log("Connection Error");
+    }catch(err){
+        console.log("Blynk Error");
     }
+
 }
 
-// --------------------------------
-// Manual Gate Button (V3)
-// --------------------------------
+// Manual Gate Open
 gateBtn.addEventListener("click", async ()=>{
 
     gateBtn.innerText = "Opening...";
@@ -64,14 +56,13 @@ gateBtn.addEventListener("click", async ()=>{
     await fetch(`${UPDATE_URL}&V3=1`);
 
     setTimeout(async ()=>{
+
         await fetch(`${UPDATE_URL}&V3=0`);
         gateBtn.innerText = "Open Gate";
+
     },1500);
 
 });
 
-// Initial Load
-fetchParkingData();
-
-// Refresh every 2 sec
-setInterval(fetchParkingData,2000);
+loadData();
+setInterval(loadData,2000);
