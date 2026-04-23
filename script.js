@@ -1,68 +1,100 @@
 // script.js
 
-const AUTH_TOKEN = "DEIBJaDx8vV6JY2byaeWadasWkoOfD94";
+const token = "DEIBJaDx8vV6JY2byaeWadasWkoOfD94";
 
-const GET_URL = `https://blynk.cloud/external/api/get?token=${AUTH_TOKEN}`;
-const UPDATE_URL = `https://blynk.cloud/external/api/update?token=${AUTH_TOKEN}`;
+let gateOpen = false;
 
-const slotStatus = document.getElementById("slotStatus");
-const gateStatus = document.getElementById("gateStatus");
-const availableCount = document.getElementById("availableCount");
-const occupiedCount = document.getElementById("occupiedCount");
-const gateBtn = document.getElementById("gateBtn");
+// ---------------- CLOCK ----------------
+function updateClock() {
+  const now = new Date();
 
-// Fetch Live Data
-async function loadData(){
+  let time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 
-    try{
-
-        const available = await fetch(`${GET_URL}&V0`).then(r=>r.text());
-        const occupied = await fetch(`${GET_URL}&V1`).then(r=>r.text());
-        const gate = await fetch(`${GET_URL}&V2`).then(r=>r.text());
-
-        // Slot
-        if(occupied === "1"){
-            slotStatus.innerText = "OCCUPIED";
-            slotStatus.className = "badge red";
-        }else{
-            slotStatus.innerText = "AVAILABLE";
-            slotStatus.className = "badge green";
-        }
-
-        // Stats
-        availableCount.innerText = available;
-        occupiedCount.innerText = occupied;
-
-        // Gate
-        if(gate.includes("OPEN")){
-            gateStatus.innerText = "OPEN";
-            gateStatus.className = "badge blue";
-        }else{
-            gateStatus.innerText = "CLOSED";
-            gateStatus.className = "badge red";
-        }
-
-    }catch(err){
-        console.log("Blynk Error");
-    }
-
+  document.getElementById("clock").textContent = time;
 }
 
-// Manual Gate Open
-gateBtn.addEventListener("click", async ()=>{
+setInterval(updateClock, 1000);
+updateClock();
 
-    gateBtn.innerText = "Opening...";
+// ---------------- BLYNK READ ----------------
+async function getPin(pin) {
+  const url =
+    `https://blynk.cloud/external/api/get?token=${token}&${pin}`;
 
-    await fetch(`${UPDATE_URL}&V3=1`);
+  const res = await fetch(url);
+  return await res.text();
+}
 
-    setTimeout(async ()=>{
+// ---------------- LOAD LIVE DATA ----------------
+async function loadData() {
+  try {
+    const v0 = (await getPin("V0")).trim(); // available
+    const v1 = (await getPin("V1")).trim(); // occupied
+    const v2 = (await getPin("V2")).trim(); // gate status
 
-        await fetch(`${UPDATE_URL}&V3=0`);
-        gateBtn.innerText = "Open Gate";
+    // LIVE badge
+    const badge = document.getElementById("liveBadge");
+    badge.textContent = "Online";
+    badge.classList.remove("offline");
+    badge.classList.add("online");
 
-    },1500);
+    // Stats
+    document.getElementById("available").textContent = v0;
+    document.getElementById("occupied").textContent = v1;
 
-});
+    // Slot box
+    const slot = document.getElementById("slotBox");
+    const slotText = document.getElementById("slotText");
 
+    if (v0 === "0") {
+      slot.textContent = "FULL";
+      slot.className = "slot busy";
+      slotText.textContent = "No Slots Available";
+    } else {
+      slot.textContent = "AVAILABLE";
+      slot.className = "slot free";
+      slotText.textContent = `${v0} Slot Free • Dual IR Detection`;
+    }
+
+    // Gate
+    const gate = document.getElementById("gateBox");
+    const btn = document.querySelector(".mainBtn");
+
+    if (v2.toLowerCase().includes("open")) {
+      gate.textContent = "OPEN";
+      gate.className = "gate open";
+      btn.textContent = "Close Gate";
+      gateOpen = true;
+    } else {
+      gate.textContent = "CLOSED";
+      gate.className = "gate closed";
+      btn.textContent = "Open Gate";
+      gateOpen = false;
+    }
+
+  } catch (err) {
+    const badge = document.getElementById("liveBadge");
+    badge.textContent = "Offline";
+    badge.classList.remove("online");
+    badge.classList.add("offline");
+  }
+}
+
+// ---------------- TOGGLE GATE ----------------
+async function toggleGate() {
+  let value = gateOpen ? 0 : 1;
+
+  const url =
+    `https://blynk.cloud/external/api/update?token=${token}&V3=${value}`;
+
+  await fetch(url);
+
+  setTimeout(loadData, 1000);
+}
+
+// ---------------- AUTO REFRESH ----------------
 loadData();
-setInterval(loadData,2000);
+setInterval(loadData, 3000);
